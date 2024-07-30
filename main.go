@@ -128,3 +128,19 @@ func detectObjects(url, imagePath string) (*Response, error) {
 	return &response, nil
 
 }
+
+func processPredictions(response *Response, imagePath string) {
+	for _, prediction := range response.Body.Predictions {
+		for _, class := range prediction.Classes {
+			if class.Cat == "Person" {
+				err := sendToDiscord(imagePath)
+				if err != nil {
+					log.Printf("Error sending to Discord: %v", err)
+				} else {
+					fmt.Println("Image sent to Discord successfully.")
+				}
+				return
+			}
+		}
+	}
+}
