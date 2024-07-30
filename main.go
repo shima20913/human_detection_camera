@@ -89,4 +89,10 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	imagePath := tempFile.Name()
 
+	response, err := detectObjects("http://deepdetect_server_url/predict", imagePath)
+	if err != nil {
+		log.Printf("Error detecting objects: %v", err)
+		return
+	}
+
 }
