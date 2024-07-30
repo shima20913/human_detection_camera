@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -113,5 +114,17 @@ func detectObjects(url, imagePath string) (*Response, error) {
 	resp, err := client.R().
 		SetFileReader("image", filepath.Base(imagePath), bytes.NewReader(fileBytes)).
 		Post(url)
+	if err != nil {
+		return nil, fmt.Errorf("error sending request to DeepDetect: %w", err)
+
+	}
+
+	var response Response
+	err = json.Unmarshal(resp.Body(), &response)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding JSON response: %w", err)
+	}
+
+	return &response, nil
 
 }
