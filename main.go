@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -79,5 +80,13 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tempFile.Close()
+
+	_, err = io.Copy(tempFile, file)
+	if err != nil {
+		http.Error(w, "Error saving file", http.StatusInternalServerError)
+		return
+	}
+
+	imagePath := tempFile.Name()
 
 }
