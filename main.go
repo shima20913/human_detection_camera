@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/go-resty/resty/v2"
 	"github.com/joho/godotenv"
 )
 
