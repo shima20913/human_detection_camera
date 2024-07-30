@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -143,4 +144,33 @@ func processPredictions(response *Response, imagePath string) {
 			}
 		}
 	}
+}
+
+func sendToDiscord(filename string) error {
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+	fw, err := w.CreateFormFile("file", filepath.Base(file.Name()))
+	if err != nil {
+		return err
+	}
+	if _, err = io.Copy(fw, file); err != nil {
+		return err
+	}
+	w.Close()
+
+	req, err := http.NewRequest("POST", os.Getenv("DISCORD_WEBHOOK"), &b)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+
+	client := &http.Client{}
+	_, err = client.Do(req)
+	return err
 }
