@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/joho/godotenv"
 )
@@ -96,5 +99,19 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	processPredictions(response, imagePath)
+
+}
+
+func detectObjects(url, imagePath string) (*Response, error) {
+	client := resty.New()
+
+	fileBytes, err := os.ReadFile(imagePath)
+	if err != nil {
+		return nil, fmt.Errorf("could not read image file: %w", err)
+	}
+
+	resp, err := client.R().
+		SetFileReader("image", filepath.Base(imagePath), bytes.NewReader(fileBytes)).
+		Post(url)
 
 }
