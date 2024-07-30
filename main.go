@@ -95,4 +95,6 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	processPredictions(response, imagePath)
+
 }
