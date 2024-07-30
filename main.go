@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/joho/godotenv"
 )
@@ -64,4 +65,19 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
+
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "Error reading file", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	tempFile, err := os.CreateTemp("/tmp", "upload-*.jpg")
+	if err != nil {
+		http.Error(w, "Error creating temp file", http.StatusInternalServerError)
+		return
+	}
+	defer tempFile.Close()
+
 }
