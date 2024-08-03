@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/joho/godotenv"
@@ -56,6 +57,15 @@ type Response struct {
 	Body   Body   `json:"body"`
 }
 
+const (
+	maxImages = 5
+)
+
+var (
+	imageQueue []string
+	queueMutex sync.Mutex
+)
+
 func main() {
 
 	godotenv.Load(".env")
@@ -92,7 +102,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	imagePath := tempFile.Name()
 
-	response, err := detectObjects("http://deepdetect_server_url/predict", imagePath)
+	response, err := detectObjects("http://100.95.55.91:8080/predict", imagePath)
 	if err != nil {
 		log.Printf("Error detecting objects: %v", err)
 		return
@@ -100,6 +110,19 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	processPredictions(response, imagePath)
 
+	manageQueue(imagePath)
+}
+
+func manageQueue(filename string) {
+	queueMutex.Lock()
+	defer queueMutex.Unlock()
+
+	imageQueue = append(imageQueue, filename)
+	if len(imageQueue) > maxImages {
+		oldest := imageQueue[0]
+		imageQueue = imageQueue[1:]
+		os.Remove(oldest)
+	}
 }
 
 func detectObjects(url, imagePath string) (*Response, error) {
@@ -131,7 +154,9 @@ func detectObjects(url, imagePath string) (*Response, error) {
 func processPredictions(response *Response, imagePath string) {
 	for _, prediction := range response.Body.Predictions {
 		for _, class := range prediction.Classes {
+			log.Printf("Detected %s", class.Cat)
 			if class.Cat == "Person" {
+				log.Println("Person Detected")
 				err := sendToDiscord(imagePath)
 				if err != nil {
 					log.Printf("Error sending to Discord: %v", err)
@@ -142,6 +167,7 @@ func processPredictions(response *Response, imagePath string) {
 			}
 		}
 	}
+	log.Println("Person Not Detected")
 }
 
 func sendToDiscord(filename string) error {
