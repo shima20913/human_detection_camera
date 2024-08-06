@@ -104,13 +104,16 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	response, err := detectObjects("http://100.95.55.91:8080/predict", imagePath)
 	if err != nil {
-		log.Printf("Error detecting objects: %v", err)
+		http.Error(w, "Error detecting objects", http.StatusInternalServerError)
 		return
 	}
 
 	processPredictions(response, imagePath)
 
 	manageQueue(imagePath)
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Successed processing"))
 }
 
 func manageQueue(filename string) {
