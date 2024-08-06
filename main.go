@@ -71,7 +71,7 @@ func main() {
 	godotenv.Load(".env")
 
 	http.HandleFunc("/upload", uploadHandler)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	http.ListenAndServe(":8081", nil)
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
@@ -163,11 +163,50 @@ func processPredictions(response *Response, imagePath string) {
 				} else {
 					fmt.Println("Image sent to Discord successfully.")
 				}
+				sendNextToImages(imagePath)
+
 				return
 			}
 		}
 	}
 	log.Println("Person Not Detected")
+}
+
+func sendNextToImages(detectedImagePath string) {
+	queueMutex.Lock()
+	defer queueMutex.Unlock()
+	var index int
+	for i, img := range imageQueue {
+		if img == detectedImagePath {
+			index = i
+			break
+		}
+	}
+	var imagesToSend []string
+	if index > 0 {
+		imagesToSend = append(imagesToSend, imageQueue[index-1])
+	}
+	imagesToSend = append(imagesToSend, imageQueue[index])
+	if index < len(imageQueue)-1 {
+		imagesToSend = append(imagesToSend, imageQueue[index+1])
+	}
+	for _, img := range imagesToSend {
+		err := sendToDiscord(img)
+		if err != nil {
+			log.Printf("Error sending to Discord: %v", err)
+		} else {
+			fmt.Println("Image sent to Discord successfully.")
+		}
+	}
+	newQueue := make([]string, 0, len(imageQueue))
+	for i, img := range imageQueue {
+		if i < index-1 || i > index+1 {
+			newQueue = append(newQueue, img)
+		} else {
+			os.Remove(img)
+		}
+	}
+	imageQueue = newQueue
 }
 
 func sendToDiscord(filename string) error {
@@ -195,6 +234,14 @@ func sendToDiscord(filename string) error {
 	req.Header.Set("Content-Type", w.FormDataContentType())
 
 	client := &http.Client{}
-	_, err = client.Do(req)
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected response status: %s", resp.Status)
+	}
 	return err
 }
