@@ -71,10 +71,15 @@ func main() {
 	godotenv.Load(".env")
 
 	http.HandleFunc("/upload", uploadHandler)
-	http.ListenAndServe(":8081", nil)
+	if err := http.ListenAndServe(":8081", nil); err != nil {
+		log.Fatalf("Server failed to start: %v", err)
+	}
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
+	// output log
+	log.Printf("Received request: %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
