@@ -181,18 +181,31 @@ func processPredictions(response *Response, imagePath string) {
 				log.Println("Person Detected")
 				err := sendToDiscord(imagePath)
 				if err != nil {
-					log.Printf("Error sending to Discord: %v", err)
+					log.Printf("error sending to Discord: %v", err)
 				} else {
-					fmt.Println("Image sent to Discord successfully.")
+					fmt.Println("image sent to Discord successfully.")
 				}
 				sendNextToImages(imagePath)
+
+				if err := os.Remove(imagePath); err != nil {
+					log.Printf("error deleting image: %v", err)
+				} else {
+					log.Println("image deleted successfully:", imagePath)
+				}
 
 				return
 			}
 		}
 	}
 	log.Println("Person Not Detected")
+
+	if err := os.Remove(imagePath); err != nil {
+		log.Printf("error deleting image: %v", err)
+	} else {
+		log.Println("image deleted successfully:", imagePath)
+	}
 }
+
 
 func sendNextToImages(detectedImagePath string) {
 	queueMutex.Lock()
