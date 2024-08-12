@@ -106,9 +106,9 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	imagePath := tempFile.Name()
+	imagePath := filepath.Base(tempFilePath)
 
-	response, err := detectObjects("http://100.95.55.91:8080/predict", imagePath)
+	response, err := detectObjects("http://100.95.55.91:8080/predict", "/data/"+imagePath)
 	if err != nil {
 		http.Error(w, "Error detecting objects", http.StatusInternalServerError)
 		return
