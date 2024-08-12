@@ -135,6 +135,10 @@ func manageQueue(filename string) {
 }
 
 func detectObjects(url, imagePath string) (*Response, error) {
+	if _, err := os.Stat(imagePath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("image file does not exist: %w", err)
+	}
+
 	client := resty.New()
 
 	file, err := os.Open(imagePath)
