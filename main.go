@@ -22,9 +22,9 @@ type Status struct {
 }
 
 type Head struct {
-	Method  string `json:"method"`
-	Service string `json:"service"`
-	Time    int    `json:"time"`
+	Method  string  `json:"method"`
+	Service string  `json:"service"`
+	Time    float64 `json:"time"`
 }
 
 type BBox struct {
@@ -108,10 +108,12 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	imagePath := filepath.Base(tempFilePath)
 
-	response, err := detectObjects("http://100.95.55.91:8082/predict",imagePath)
+	response, err := detectObjects("http://100.95.55.91:8082/predict", imagePath)
 	if err != nil {
 		http.Error(w, "Error detecting objects", http.StatusInternalServerError)
+		log.Printf("Motion detection failed: %v", err)
 		return
+
 	}
 
 	processPredictions(response, imagePath)
@@ -130,38 +132,54 @@ func manageQueue(filename string) {
 	if len(imageQueue) > maxImages {
 		oldest := imageQueue[0]
 		imageQueue = imageQueue[1:]
-		os.Remove(oldest)
+		os.Remove("./imagesfile/" + oldest)
 	}
 }
 
 func detectObjects(url, imagePath string) (*Response, error) {
-	if _, err := os.Stat(imagePath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("image file does not exist: %w", err)
-	}
+	// if _, err := os.Stat(imagePath); os.IsNotExist(err) {
+	// 	return nil, fmt.Errorf("image file does not exist: %w", err)
+	// }
+
+	// client := resty.New()
+
+	// file, err := os.Open(imagePath)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("could not open image file: %w", err)
+	// }
+	// defer file.Close()
+
+	// var b bytes.Buffer
+	// w := multipart.NewWriter(&b)
+	// part, err := w.CreateFormFile("file", filepath.Base(imagePath))
+	// if err != nil {
+	// 	return nil, fmt.Errorf("could not create form file: %w", err)
+	// }
+	// _, err = io.Copy(part, file)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("could not copy file to form: %w", err)
+	// }
+	// w.Close()
 
 	client := resty.New()
+	payload := map[string]interface{}{
+		"service": "detection_600",
+		"parameters": map[string]interface{}{
+			"input":  map[string]interface{}{},
+			"output": map[string]interface{}{"confidence_threshold": 0.3, "bbox": true},
+			"mllib":  map[string]interface{}{"gpu": false},
+		},
+		"data": []string{"/data/" + imagePath},
+	}
 
-	file, err := os.Open(imagePath)
+	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		return nil, fmt.Errorf("could not open image file: %w", err)
+		return nil, fmt.Errorf("error creating json payload: %w", err)
 	}
-	defer file.Close()
-
-	var b bytes.Buffer
-	w := multipart.NewWriter(&b)
-	part, err := w.CreateFormFile("file", filepath.Base(imagePath))
-	if err != nil {
-		return nil, fmt.Errorf("could not create form file: %w", err)
-	}
-	_, err = io.Copy(part, file)
-	if err != nil {
-		return nil, fmt.Errorf("could not copy file to form: %w", err)
-	}
-	w.Close()
 
 	resp, err := client.R().
-		SetHeader("Content-Type", w.FormDataContentType()).
-		SetBody(b.Bytes()).
+		SetHeader("Content-Type", "application/json").
+		SetBody(jsonPayload).
 		Post(url)
 	if err != nil {
 		return nil, fmt.Errorf("error sending request to DeepDetect: %w", err)
@@ -181,7 +199,7 @@ func processPredictions(response *Response, imagePath string) {
 	for _, prediction := range response.Body.Predictions {
 		for _, class := range prediction.Classes {
 			log.Printf("Detected %s", class.Cat)
-			if class.Cat == "Person" {
+			if class.Cat == "Person" || class.Cat == "Face" {
 				log.Println("Person Detected")
 				err := sendToDiscord(imagePath)
 				if err != nil {
@@ -191,11 +209,11 @@ func processPredictions(response *Response, imagePath string) {
 				}
 				sendNextToImages(imagePath)
 
-				if err := os.Remove(imagePath); err != nil {
-					log.Printf("error deleting image: %v", err)
-				} else {
-					log.Println("image deleted successfully:", imagePath)
-				}
+				// if err := os.Remove("./imagesfile/" + imagePath); err != nil {
+				// 	log.Printf("error deleting image: %v", err)
+				// } else {
+				// 	log.Println("image deleted successfully:", imagePath)
+				// }
 
 				return
 			}
@@ -203,13 +221,12 @@ func processPredictions(response *Response, imagePath string) {
 	}
 	log.Println("Person Not Detected")
 
-	if err := os.Remove(imagePath); err != nil {
-		log.Printf("error deleting image: %v", err)
-	} else {
-		log.Println("image deleted successfully:", imagePath)
-	}
+	// if err := os.Remove(imagePath); err != nil {
+	// 	log.Printf("error deleting image: %v", err)
+	// } else {
+	// 	log.Println("image deleted successfully:", imagePath)
+	// }
 }
-
 
 func sendNextToImages(detectedImagePath string) {
 	queueMutex.Lock()
@@ -249,7 +266,7 @@ func sendNextToImages(detectedImagePath string) {
 }
 
 func sendToDiscord(filename string) error {
-	file, err := os.Open(filename)
+	file, err := os.Open("./imagesfile/" + filename)
 	if err != nil {
 		return err
 	}
