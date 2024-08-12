@@ -85,14 +85,15 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	file, _, err := r.FormFile("file")
+	file, fileHeader, err := r.FormFile("file")
 	if err != nil {
 		http.Error(w, "Error reading file", http.StatusBadRequest)
 		return
 	}
 	defer file.Close()
 
-	tempFile, err := os.CreateTemp("/tmp", "upload-*.jpg")
+	tempFilePath := filepath.Join("imagesfile", "upload-"+fileHeader.Filename)
+	tempFile, err := os.Create(tempFilePath)
 	if err != nil {
 		http.Error(w, "Error creating temp file", http.StatusInternalServerError)
 		return
