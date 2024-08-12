@@ -136,17 +136,30 @@ func manageQueue(filename string) {
 func detectObjects(url, imagePath string) (*Response, error) {
 	client := resty.New()
 
-	fileBytes, err := os.ReadFile(imagePath)
+	file, err := os.Open(imagePath)
 	if err != nil {
-		return nil, fmt.Errorf("could not read image file: %w", err)
+		return nil, fmt.Errorf("could not open image file: %w", err)
 	}
+	defer file.Close()
+
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+	part, err := w.CreateFormFile("file", filepath.Base(imagePath))
+	if err != nil {
+		return nil, fmt.Errorf("could not create form file: %w", err)
+	}
+	_, err = io.Copy(part, file)
+	if err != nil {
+		return nil, fmt.Errorf("could not copy file to form: %w", err)
+	}
+	w.Close()
 
 	resp, err := client.R().
-		SetFileReader("image", filepath.Base(imagePath), bytes.NewReader(fileBytes)).
+		SetHeader("Content-Type", w.FormDataContentType()).
+		SetBody(b.Bytes()).
 		Post(url)
 	if err != nil {
 		return nil, fmt.Errorf("error sending request to DeepDetect: %w", err)
-
 	}
 
 	var response Response
