@@ -136,24 +136,18 @@ func manageQueue(filename string) {
 func detectObjects(url, imagePath string) (*Response, error) {
 	client := resty.New()
 
+	fileBytes, err := os.ReadFile(imagePath)
+	if err != nil {
+		return nil, fmt.Errorf("could not read image file: %w", err)
+	}
+
 	resp, err := client.R().
-		SetHeader("Content-Type", "application/json").
-		SetBody(map[string]interface{}{
-			"service": "detection_600",
-			"parameters": map[string]interface{}{
-				"mllib": map[string]bool{"gpu": true},
-				"output": map[string]interface{}{
-					"confidence_threshold": 0.3,
-					"bbox":                 true,
-				},
-			},
-			"data": []string{filepath.Base(imagePath)},
-		}).
+		SetFileReader("image", filepath.Base(imagePath), bytes.NewReader(fileBytes)).
 		Post(url)
 	if err != nil {
 		return nil, fmt.Errorf("error sending request to DeepDetect: %w", err)
+
 	}
-	log.Printf("DeepDetect response: %s", resp.String())
 
 	var response Response
 	err = json.Unmarshal(resp.Body(), &response)
