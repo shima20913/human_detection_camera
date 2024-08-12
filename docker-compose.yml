@@ -1,9 +1,8 @@
-version: '3.8'
 services:
   deepdetect:
     image: docker.jolibrain.com/deepdetect_cpu
     ports:
-      - "8080:8080"
+      - "8082:8080"
     volumes:
       - /home/shima09/camera_surv/human_detection_camera/imagesfile:/data
    
