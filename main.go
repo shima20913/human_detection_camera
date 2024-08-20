@@ -64,12 +64,17 @@ type Response struct {
 	Body   Body   `json:"body"`
 }
 
+type DetectionData struct {
+	Image string 
+	Time time.Time
+}
+
 const (
 	maxImages = 5
 )
 
 var (
-	imageQueue []string
+	imageQueue []DetectionData
 	queueMutex sync.Mutex
 )
 
@@ -153,10 +158,10 @@ func detectionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	detections := []map[string]string{}
-	for _, image := range latestDetections {
+	for _, imageData := range latestDetections {
 		detections = append(detections, map[string]string{
-			"imageUrl": image,
-			"time":     time.Now().Format("2006-01-02 15:04:05"),
+			"imageUrl": imageData.Image,
+			"time":     imageData.Time.Format("2006-01-02 15:04:05"),
 			"weather":  weather, // 取得した天気情報を追加
 		})
 	}
@@ -228,11 +233,13 @@ func manageQueue(filename string) {
 	queueMutex.Lock()
 	defer queueMutex.Unlock()
 
-	imageQueue = append(imageQueue, filename)
+	
+
+	imageQueue = append(imageQueue, DetectionData{Image: filename, Time: time.Now()})
 	if len(imageQueue) > maxImages {
 		oldest := imageQueue[0]
 		imageQueue = imageQueue[1:]
-		os.Remove("./imagesfile/" + oldest)
+		os.Remove("./imagesfile/" + oldest.Image)
 	}
 }
 
