@@ -82,6 +82,9 @@ func main() {
 	http.HandleFunc("/upload", uploadHandler)
 	http.HandleFunc("/detection", detectionHandler)
 
+	//画像取得用のエンドポイントを作成
+	http.Handle("/image/", http.StripPrefix("/image", http.FileServer(http.Dir("imagesfile"))))
+	
 	corsHandler := corsMiddleware(http.DefaultServeMux)
 
 	if err := http.ListenAndServe(":8081", corsHandler); err != nil {
@@ -151,7 +154,7 @@ func detectionHandler(w http.ResponseWriter, r *http.Request) {
 	detections := []map[string]string{}
 	for _, image := range latestDetections {
 		detections = append(detections, map[string]string{
-			"imageUrl": "/data/" + image,
+			"imageUrl": image,
 			"time":     time.Now().Format("2006-01-02 15:04:05"),
 			"weather":  weather, // 取得した天気情報を追加
 		})
