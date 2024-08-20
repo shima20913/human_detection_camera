@@ -11,10 +11,17 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/joho/godotenv"
 )
+
+type WeatherResponse struct {
+	Weather []struct {
+		Main string `json:"main"`
+	} `json:"weather"`
+}
 
 type Status struct {
 	Code int    `json:"code"`
@@ -66,15 +73,100 @@ var (
 	queueMutex sync.Mutex
 )
 
+
+
 func main() {
 
 	godotenv.Load(".env")
 
 	http.HandleFunc("/upload", uploadHandler)
-	if err := http.ListenAndServe(":8081", nil); err != nil {
+	http.HandleFunc("/detection", detectionHandler)
+
+	corsHandler := corsMiddleware(http.DefaultServeMux)
+
+	if err := http.ListenAndServe(":8081", corsHandler); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }
+
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func getWeatherInfo() (string, error) {
+	client := resty.New()
+
+	// APIキーと都市名を取得
+	apiKey := os.Getenv("OPENWEATHER_API_KEY")
+	city := "Hiroshima" // 都市名を指定
+
+	url := fmt.Sprintf("https://api.openweathermap.org/data/2.5/weather?q=%s&appid=%s", city, apiKey)
+
+	// APIリクエストを送信
+	resp, err := client.R().Get(url)
+	if err != nil {
+		return "", fmt.Errorf("failed to request weather info: %w", err)
+	}
+
+	var weatherResponse WeatherResponse
+	err = json.Unmarshal(resp.Body(), &weatherResponse)
+	if err != nil {
+		return "", fmt.Errorf("failed to unmarshal weather response: %w", err)
+	}
+
+	if len(weatherResponse.Weather) > 0 {
+		return weatherResponse.Weather[0].Main, nil
+	}
+
+	return "Unknown", nil
+}
+
+func detectionHandler(w http.ResponseWriter, r *http.Request) {
+	queueMutex.Lock()
+	defer queueMutex.Unlock()
+
+	latestDetections := imageQueue
+	if len(latestDetections) > 10 {
+		latestDetections = latestDetections[len(latestDetections)-10:]
+	}
+
+	// 天気情報を取得
+	weather, err := getWeatherInfo()
+	if err != nil {
+		weather = "Unknown"
+		log.Printf("failed to get weather info: %v", err)
+	}
+
+	detections := []map[string]string{}
+	for _, image := range latestDetections {
+		detections = append(detections, map[string]string{
+			"imageUrl": "/data/" + image,
+			"time":     time.Now().Format("2006-01-02 15:04:05"),
+			"weather":  weather, // 取得した天気情報を追加
+		})
+	}
+
+	jsonResponse, err := json.Marshal(detections)
+	if err != nil {
+		http.Error(w, "Failed to generate JSON", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonResponse)
+}
+
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	// output log
@@ -301,3 +393,5 @@ func sendToDiscord(filename string) error {
 	}
 	return err
 }
+
+
