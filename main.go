@@ -302,7 +302,7 @@ func processPredictions(response *Response, imagePath string) {
 				} else {
 					fmt.Println("image sent to Discord successfully.")
 				}
-				sendNextToImages(imagePath)
+				// sendNextToImages(imagePath)
 
 				// if err := os.Remove("./imagesfile/" + imagePath); err != nil {
 				// 	log.Printf("error deleting image: %v", err)
@@ -323,42 +323,42 @@ func processPredictions(response *Response, imagePath string) {
 	// }
 }
 
-func sendNextToImages(detectedImagePath string) {
-	queueMutex.Lock()
-	defer queueMutex.Unlock()
-	var index int
-	for i, img := range imageQueue {
-		if img == detectedImagePath {
-			index = i
-			break
-		}
-	}
-	var imagesToSend []string
-	if index > 0 {
-		imagesToSend = append(imagesToSend, imageQueue[index-1])
-	}
-	imagesToSend = append(imagesToSend, imageQueue[index])
-	if index < len(imageQueue)-1 {
-		imagesToSend = append(imagesToSend, imageQueue[index+1])
-	}
-	for _, img := range imagesToSend {
-		err := sendToDiscord(img)
-		if err != nil {
-			log.Printf("Error sending to Discord: %v", err)
-		} else {
-			fmt.Println("Image sent to Discord successfully.")
-		}
-	}
-	newQueue := make([]string, 0, len(imageQueue))
-	for i, img := range imageQueue {
-		if i < index-1 || i > index+1 {
-			newQueue = append(newQueue, img)
-		} else {
-			os.Remove(img)
-		}
-	}
-	imageQueue = newQueue
-}
+// func sendNextToImages(detectedImagePath string) {
+// 	queueMutex.Lock()
+// 	defer queueMutex.Unlock()
+// 	var index int
+// 	for i, img := range imageQueue {
+// 		if img == detectedImagePath {
+// 			index = i
+// 			break
+// 		}
+// 	}
+// 	var imagesToSend []string
+// 	if index > 0 {
+// 		imagesToSend = append(imagesToSend, imageQueue[index-1])
+// 	}
+// 	imagesToSend = append(imagesToSend, imageQueue[index])
+// 	if index < len(imageQueue)-1 {
+// 		imagesToSend = append(imagesToSend, imageQueue[index+1])
+// 	}
+// 	for _, img := range imagesToSend {
+// 		err := sendToDiscord(img)
+// 		if err != nil {
+// 			log.Printf("Error sending to Discord: %v", err)
+// 		} else {
+// 			fmt.Println("Image sent to Discord successfully.")
+// 		}
+// 	}
+// 	newQueue := make([]string, 0, len(imageQueue))
+// 	for i, img := range imageQueue {
+// 		if i < index-1 || i > index+1 {
+// 			newQueue = append(newQueue, img)
+// 		} else {
+// 			os.Remove(img)
+// 		}
+// 	}
+// 	imageQueue = newQueue
+// }
 
 func sendToDiscord(filename string) error {
 	file, err := os.Open("./imagesfile/" + filename)
