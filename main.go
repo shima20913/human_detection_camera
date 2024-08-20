@@ -142,6 +142,7 @@ func detectionHandler(w http.ResponseWriter, r *http.Request) {
 	latestDetections := imageQueue
 	if len(latestDetections) > 10 {
 		latestDetections = latestDetections[len(latestDetections)-10:]
+		// latestDetections = latestDetections[:10]
 	}
 
 	// 天気情報を取得
@@ -211,9 +212,13 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	processPredictions(response, imagePath)
+	if processPredictions(response, imagePath) {
+		manageQueue(imagePath)
+	}else{
+		os.Remove("./imagesfile/" + imagePath)
+	}
 
-	manageQueue(imagePath)
+	
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Successed processing"))
@@ -290,7 +295,7 @@ func detectObjects(url, imagePath string) (*Response, error) {
 
 }
 
-func processPredictions(response *Response, imagePath string) {
+func processPredictions(response *Response, imagePath string) bool {
 	for _, prediction := range response.Body.Predictions {
 		for _, class := range prediction.Classes {
 			log.Printf("Detected %s", class.Cat)
@@ -310,11 +315,13 @@ func processPredictions(response *Response, imagePath string) {
 				// 	log.Println("image deleted successfully:", imagePath)
 				// }
 
-				return
+				return true
 			}
 		}
 	}
 	log.Println("Person Not Detected")
+
+	return false
 
 	// if err := os.Remove(imagePath); err != nil {
 	// 	log.Printf("error deleting image: %v", err)
